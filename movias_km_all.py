@@ -3,7 +3,6 @@ import pandas as pd
 import time
 import calendar
 from datetime import datetime, timedelta
-import sys
 
 # ===================== 1. CONFIGURAÇÕES E ENTRADA DO USUÁRIO =====================
 BASE_URL = "https://www.movias.com.br:8443/ws"
@@ -72,7 +71,7 @@ resp_login.raise_for_status()
 token = resp_login.json().get("id_token")
 if not token:
     print("❌ Falha ao obter token. Verifique usuário/senha.")
-    sys.exit(1)
+    exit(1)
 
 headers = {"Authorization": f"Bearer {token}"}
 print("✔ Autenticado com sucesso.\n")
@@ -109,23 +108,23 @@ for idx, (id_veic, placa) in enumerate(lista_veiculos, start=1):
 
     resp_trip = requests.get(url_trip, headers=headers, params=params)
 
+    # Se qualquer status diferente de 200, considera 0 km, mas NÃO interrompe
     if resp_trip.status_code != 200:
-        print(f"   → Erro HTTP {resp_trip.status_code} ao chamar /telemetry/trip. Verifique e tente novamente.")
-        sys.exit(1)
+        total_km = 0.0
+    else:
+        dados_trip = resp_trip.json()
+        total_km = 0.0
 
-    dados_trip = resp_trip.json()
-    total_km = 0.0
-
-    if isinstance(dados_trip, list) and dados_trip:
-        for bloco in dados_trip[0].get("telemetry", []):
-            dist = bloco.get("distanceTraveled", 0)
-            data = bloco.get("startDate", "")
-            try:
-                dt = datetime.strptime(data, "%d/%m/%Y %H:%M:%S")
-            except Exception:
-                continue
-            if dt.year == ano and dt.month == mes:
-                total_km += float(dist)
+        if isinstance(dados_trip, list) and dados_trip:
+            for bloco in dados_trip[0].get("telemetry", []):
+                dist = bloco.get("distanceTraveled", 0)
+                data = bloco.get("startDate", "")
+                try:
+                    dt = datetime.strptime(data, "%d/%m/%Y %H:%M:%S")
+                except Exception:
+                    continue
+                if dt.year == ano and dt.month == mes:
+                    total_km += float(dist)
 
     print(f"   → {nome_mes}/{ano}: {total_km:.2f} km\n")
     registros.append({
